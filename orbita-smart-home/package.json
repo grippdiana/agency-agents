@@ -1,0 +1,60 @@
+{
+  "name": "orbita-smart-home",
+  "version": "1.0.0",
+  "description": "ORBITA — Dashboard desktop futurista para controlar sua casa inteligente (Tuya, LG ThinQ, TV LG webOS e Home Assistant) pela rede Wi-Fi.",
+  "main": "electron/main.js",
+  "author": "ORBITA Smart Home",
+  "license": "MIT",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "desktop": "electron .",
+    "build:desktop": "electron-builder",
+    "build:win": "electron-builder --win",
+    "build:mac": "electron-builder --mac",
+    "build:linux": "electron-builder --linux",
+    "test": "node scripts/test-all.js",
+    "scan": "node scripts/scan-network.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.orbita.smarthome",
+    "productName": "ORBITA Casa Inteligente",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "public/**/*",
+      "assets/**/*",
+      "electron/**/*",
+      "server.js",
+      "package.json"
+    ],
+    "win": {
+      "target": ["nsis", "portable"],
+      "icon": "assets/icon.png"
+    },
+    "mac": {
+      "target": ["dmg"],
+      "icon": "assets/icon.png",
+      "category": "public.app-category.utilities"
+    },
+    "linux": {
+      "target": ["AppImage", "deb"],
+      "icon": "assets/icon.png",
+      "category": "Utility"
+    }
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

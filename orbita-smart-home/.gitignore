@@ -1,0 +1,10 @@
+node_modules/
+.env
+config.json
+dist/
+*.log
+.DS_Store
+native-win/embed_assets.h
+native-win/app.ico
+native-win/app.rc
+native-win/app.res

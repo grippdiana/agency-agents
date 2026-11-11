@@ -1,0 +1,14 @@
+{
+  "name": "HOLONET // Comando Residencial",
+  "short_name": "HOLONET",
+  "description": "Console tático inspirado em Star Wars para controlar TV Samsung Crystal 55\", Tuya, LG ThinQ e Home Assistant via Wi-Fi.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#04070D",
+  "theme_color": "#04070D",
+  "orientation": "any",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

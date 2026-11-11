@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#04070D">
+<title>HOLONET // Comando Residencial — Edição Starfighter</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" type="image/png" href="/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;800&family=Rajdhani:wght@500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<canvas id="starfield" aria-hidden="true"></canvas>
+<div class="scanlines" aria-hidden="true"></div>
+
+<div class="app">
+  <!-- COCKPIT TOPBAR -->
+  <header class="topbar hull">
+    <div class="brand">
+      <div class="reticle-emblem" aria-hidden="true">
+        <span class="r-outer"></span>
+        <span class="r-cross"></span>
+        <span class="r-core"></span>
+      </div>
+      <div>
+        <div class="brand-kicker">ALLIANCE TACTICAL // DOMÓTICA WI-FI</div>
+        <div class="brand-name">HOLONET <span class="amber">CMD</span></div>
+      </div>
+    </div>
+
+    <div class="top-stats">
+      <div class="tstat">
+        <label>UNIDADES NO SETOR</label>
+        <strong id="statDevices">—</strong>
+      </div>
+      <div class="tstat">
+        <label>SINAL ATIVO</label>
+        <strong id="statOnline" class="cyan">—</strong>
+      </div>
+      <div class="tstat">
+        <label>CARGA DO REATOR</label>
+        <strong id="statWatts" class="amber">—</strong>
+      </div>
+      <div class="tstat">
+        <label>CANAL DE COMANDO</label>
+        <strong id="statMode" class="mode-demo">SIMULAÇÃO</strong>
+      </div>
+    </div>
+
+    <div class="top-right">
+      <button class="btn sfx-btn" id="btnAutostart" title="Iniciar automaticamente quando ligar o computador">🚀 BOOT: ATIVO</button>
+      <button class="btn sfx-btn" id="btnSfx" title="Alternar bipes táticos do console">🔊 HUD SFX</button>
+      <button class="btn install-pill" id="btnTopInstall">⬇ BAIXAR PROGRAMA</button>
+      <div class="clock">
+        <span id="clockTime">--:--</span>
+        <small id="clockDate">CICLO PADRÃO</small>
+      </div>
+      <div class="net-pill" id="netPill"><i></i> <span id="netIp">REDE LOCAL</span></div>
+    </div>
+  </header>
+
+  <div class="shell">
+    <!-- COMMAND RAIL -->
+    <nav class="rail hull" aria-label="Setores do console">
+      <button class="rail-btn active" data-view="overview">
+        <span class="ric">⌖</span><small>Holomapa<br>Tático</small>
+      </button>
+      <button class="rail-btn" data-view="devices">
+        <span class="ric">❖</span><small>Sistemas</small>
+      </button>
+      <button class="rail-btn" data-view="scenes">
+        <span class="ric">◈</span><small>Protocolos</small>
+      </button>
+      <button class="rail-btn" data-view="energy">
+        <span class="ric">⚡</span><small>Reator</small>
+      </button>
+      <button class="rail-btn" data-view="network">
+        <span class="ric">◎</span><small>Sensores<br>Wi-Fi</small>
+      </button>
+      <button class="rail-btn" data-view="integrations">
+        <span class="ric">⬡</span><small>Parear<br>Casa</small>
+      </button>
+      <button class="rail-btn" data-view="install">
+        <span class="ric">⬇</span><small>Instalar<br>Desktop</small>
+      </button>
+      <div class="rail-foot">
+        <div class="rail-dot" id="railDot"></div>
+        <small id="railMode">SIM</small>
+      </div>
+    </nav>
+
+    <!-- MAIN DECK -->
+    <main class="main">
+      <!-- 1. OVERVIEW: HOLOTABLE + TARGETING COMPUTER -->
+      <section class="view active" id="view-overview">
+        <div class="view-head">
+          <div>
+            <div class="sector-tag">// PONTE DE COMANDO RESIDENCIAL · SAMSUNG TIZEN · TUYA · LG THINQ</div>
+            <h1>MESA HOLOGRÁFICA DO SETOR</h1>
+            <p>Trave a mira em um ponto do holomapa ou clique em um módulo abaixo para acionar sua Samsung Crystal 55", luzes Tuya e Lava e Seca LG.</p>
+          </div>
+          <div class="head-actions">
+            <button class="btn ghost" id="btnScanTop">◎ Sonda Wi-Fi</button>
+            <button class="btn ghost" id="btnGoInteg">⬡ Parear Samsung 55" / Casa</button>
+            <button class="btn danger" id="btnAllOff">⏻ Corte de Emergência</button>
+          </div>
+        </div>
+
+        <div class="overview-grid">
+          <!-- HOLOGRAPHIC PROJECTION TABLE -->
+          <div class="panel hull holo-panel">
+            <div class="panel-head">
+              <span>PROJEÇÃO HOLOGRÁFICA // PLANTA DA BASE</span>
+              <span class="mono cyan-dim" id="floorHint">TRAVE UM ALVO NO MAPA</span>
+            </div>
+
+            <div class="holo-stage">
+              <div class="holo-beam" aria-hidden="true"></div>
+              <svg viewBox="0 0 100 62" class="floor" id="floorSvg" aria-label="Holomapa da residência">
+                <defs>
+                  <pattern id="holoGrid" width="4" height="4" patternUnits="userSpaceOnUse">
+                    <path d="M4 0H0V4" fill="none" stroke="rgba(61,216,255,0.11)" stroke-width="0.16"/>
+                  </pattern>
+                  <radialGradient id="holoGlow" cx="50%" cy="50%" r="55%">
+                    <stop offset="0%" stop-color="#3DD8FF" stop-opacity="0.16"/>
+                    <stop offset="70%" stop-color="#3DD8FF" stop-opacity="0.04"/>
+                    <stop offset="100%" stop-color="#04070D" stop-opacity="0"/>
+                  </radialGradient>
+                </defs>
+
+                <!-- Base holotable field & Yavin tactical range rings -->
+                <rect x="2" y="4" width="96" height="54" fill="url(#holoGrid)" stroke="#1B5670" stroke-width="0.45"/>
+                <rect x="2" y="4" width="96" height="54" fill="url(#holoGlow)"/>
+                <circle cx="50" cy="31" r="14" fill="none" stroke="rgba(61,216,255,0.16)" stroke-width="0.22" stroke-dasharray="1.4 1"/>
+                <circle cx="50" cy="31" r="26" fill="none" stroke="rgba(61,216,255,0.12)" stroke-width="0.22" stroke-dasharray="2 1.4"/>
+                <line x1="2" y1="31" x2="98" y2="31" stroke="rgba(61,216,255,0.09)" stroke-width="0.2"/>
+                <line x1="50" y1="4" x2="50" y2="58" stroke="rgba(61,216,255,0.09)" stroke-width="0.2"/>
+
+                <!-- Setores (Cômodos) -->
+                <g font-family="Share Tech Mono, monospace" font-size="2.0" fill="#5CB8D6" letter-spacing="0.32">
+                  <text x="4.5" y="7.8">SEC-01 // SALA DE COMANDO</text>
+                  <text x="52.5" y="7.8">SEC-02 // COZINHA</text>
+                  <text x="4.5" y="35.6">SEC-03 // CÁPSULA SUÍTE</text>
+                  <text x="52.5" y="35.6">SEC-04 // DOCA LG THINQ</text>
+                  <text x="4.5" y="51.2">SEC-05 // COMPORTA HALL</text>
+                </g>
+
+                <!-- Paredes Holográficas -->
+                <g stroke="#2E8AB0" stroke-width="0.52" fill="none">
+                  <path d="M2 32 H24 M29 32 H98"/>
+                  <path d="M50 4 V18 M50 23 V58"/>
+                  <path d="M2 48 H16 M21 48 H50"/>
+                </g>
+
+                <!-- Tela Samsung Crystal 55" destacada em âmbar na parede norte -->
+                <rect x="35.5" y="4" width="13" height="1.5" fill="#FFB020"/>
+                <text x="42" y="3.1" text-anchor="middle" font-family="Share Tech Mono, monospace" font-size="1.65" fill="#FFB020">SAMSUNG CRYSTAL 55"</text>
+
+                <!-- Nós dos dispositivos -->
+                <g id="floorNodes"></g>
+              </svg>
+
+              <div class="floor-legend mono">
+                <span><i class="lg on"></i> ENERGIZADO (ÂMBAR)</span>
+                <span><i class="lg holo"></i> STANDBY (HOLO)</span>
+                <span><i class="lg warn"></i> ALERTA / CICLO FIM</span>
+              </div>
+            </div>
+
+            <div class="quick-scenes" id="quickScenes"></div>
+          </div>
+
+          <!-- X-WING TARGETING COMPUTER (SELECTED DEVICE) -->
+          <aside class="panel hull detail-panel" id="detailPanel">
+            <div class="panel-head">
+              <span>COMPUTADOR DE MIRA // CONTROLE</span>
+              <span class="mono amber" id="detailBrand">—</span>
+            </div>
+            <div id="detailBody" class="detail-body"></div>
+          </aside>
+        </div>
+
+        <div class="panel hull">
+          <div class="panel-head">
+            <span>MÓDULOS DO SETOR RESIDENCIAL</span>
+            <div style="display:flex;gap:14px;align-items:center">
+              <span class="mono cyan-dim" id="devCount">—</span>
+              <button class="link" id="btnNewDevice">+ REGISTRAR UNIDADE</button>
+            </div>
+          </div>
+          <div class="cards" id="deviceCards"></div>
+        </div>
+
+        <div class="panel hull">
+          <div class="panel-head">
+            <span>TRANSMISSÕES DA HOLONET // LOG DE COMANDO</span>
+            <button class="link" id="btnRefreshLog">↻ SINCRONIZAR</button>
+          </div>
+          <div class="log" id="activityLog"></div>
+        </div>
+      </section>
+
+      <!-- 2. DEVICES -->
+      <section class="view" id="view-devices">
+        <div class="view-head">
+          <div>
+            <div class="sector-tag">// INVENTÁRIO COMPLETO DE SISTEMAS</div>
+            <h1>UNIDADES CONECTADAS</h1>
+            <p>Filtre por subsistema ou adicione novos equipamentos descobertos pelos sensores Wi-Fi.</p>
+          </div>
+          <div class="head-actions">
+            <button class="btn ghost" id="btnNewDevice2">+ Registrar Unidade</button>
+          </div>
+        </div>
+        <div class="filters" id="typeFilters" style="margin-bottom:16px"></div>
+        <div class="cards" id="deviceCardsAll"></div>
+      </section>
+
+      <!-- 3. SCENES -->
+      <section class="view" id="view-scenes">
+        <div class="view-head">
+          <div>
+            <div class="sector-tag">// MANOBRAS E SEQUÊNCIAS AUTOMÁTICAS</div>
+            <h1>PROTOCOLOS DE COMANDO</h1>
+            <p>Dispare sequências coordenadas entre sua Samsung Crystal 55", iluminação Tuya, ar-condicionado e fechadura.</p>
+          </div>
+        </div>
+        <div class="scenes-grid" id="scenesGrid"></div>
+        <div class="panel hull" style="margin-top:16px">
+          <div class="panel-head"><span>PLANO DE OPERAÇÃO RECOMENDADO PARA SUA BASE</span></div>
+          <div class="steps">
+            <div class="step"><b>01</b><div><strong>TV Samsung Crystal 55" direto pelo Wi-Fi (Sem Hub!)</strong><p>O HOLONET fala nativamente o protocolo <b>Samsung Tizen WSS (porta 8002)</b> + abertura direta de apps (Netflix, YouTube, Prime Video, Disney+) + <b>Wake-on-LAN</b>. Basta digitar o IP da TV na aba <b>Parear Casa</b> e clicar em <em>Permitir</em> com o controle da Samsung.</p></div></div>
+            <div class="step"><b>02</b><div><strong>Home Assistant para unir Tuya + Lava e Seca LG ThinQ</strong><p>Rode o Home Assistant em Docker no seu PC ou Raspberry Pi, conecte as integrações <b>Tuya</b> e <b>LG ThinQ</b>, cole o Token no HOLONET e clique em <b>Salvar &amp; Sincronizar</b>.</p></div></div>
+            <div class="step"><b>03</b><div><strong>Tuya Cloud OpenAPI v2.0 Direto (Opcional)</strong><p>Para acionar lâmpadas e tomadas Tuya sem instalar Home Assistant, insira seu <em>Access ID</em> e <em>Access Secret</em> de <b>iot.tuya.com</b>.</p></div></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 4. ENERGY -->
+      <section class="view" id="view-energy">
+        <div class="view-head">
+          <div>
+            <div class="sector-tag">// MONITORAMENTO DO NÚCLEO DE FORÇA</div>
+            <h1>TELEMETRIA DO REATOR ELÉTRICO</h1>
+            <p>Carga instantânea drenada por cada módulo ativo e histórico de 24 ciclos horários.</p>
+          </div>
+        </div>
+        <div class="energy-top">
+          <div class="panel hull big-num"><label>DRENAGEM ATUAL</label><strong id="energyNow" class="amber">—</strong><small>WATTS</small></div>
+          <div class="panel hull big-num"><label>CONSUMO DO CICLO</label><strong id="energyToday" class="cyan">—</strong><small>kWh</small></div>
+          <div class="panel hull big-num"><label>PROJEÇÃO MENSAL</label><strong id="energyMonth">—</strong><small>R$</small></div>
+        </div>
+        <div class="overview-grid">
+          <div class="panel hull">
+            <div class="panel-head"><span>OSCILOSCÓPIO DE CARGA // 24 HORAS</span><span class="mono cyan-dim">kWh / h</span></div>
+            <canvas id="energyChart" height="230"></canvas>
+          </div>
+          <div class="panel hull">
+            <div class="panel-head"><span>DISTRIBUIÇÃO POR SUBSISTEMA ATIVO</span><span class="mono amber">WATTS</span></div>
+            <div id="energyBreakdown" class="breakdown-list"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 5. NETWORK -->
+      <section class="view" id="view-network">
+        <div class="view-head">
+          <div>
+            <div class="sector-tag">// RADAR DE LONGO ALCANCE · SUB-REDE LOCAL</div>
+            <h1>SONDA DE SENSORES WI-FI</h1>
+            <p>Varre portas Samsung Tizen (<code>8001/8002</code>), Home Assistant (<code>8123</code>), Tuya Local (<code>6668</code>), RTSP (<code>554</code>) e SSDP/UPnP.</p>
+          </div>
+          <button class="btn solid" id="btnScan">◎ Iniciar Varredura de Setor</button>
+        </div>
+        <div class="panel hull local-net" id="localNet">
+          <div class="panel-head"><span>TRANSCEPTOR DESTE CONSOLE</span></div>
+          <div class="mono" id="localNetBody">Inicializando sensores…</div>
+        </div>
+        <div class="panel hull">
+          <div class="panel-head"><span>ASSINATURAS DETECTADAS NO WI-FI</span><span class="mono cyan-dim" id="scanStatus">EM ESPERA</span></div>
+          <div class="radar idle" id="radar">
+            <div class="radar-ring r1"></div>
+            <div class="radar-ring r2"></div>
+            <div class="radar-sweep"></div>
+            <div class="radar-dot"></div>
+          </div>
+          <div class="found-list" id="foundList"></div>
+          <p class="hint">Nota tática: aqui na Live Preview em nuvem a sonda analisa apenas o container isolado. Ao abrir o <b>HOLONET Desktop</b> instalado no seu PC em casa, o radar detectará automaticamente o IP e o MAC da sua <b>Samsung Crystal 55"</b> (portas 8001/8002), suas lâmpadas Tuya e seu Home Assistant!</p>
+        </div>
+      </section>
+
+      <!-- 6. INTEGRATIONS -->
+      <section class="view" id="view-integrations">
+        <div class="view-head">
+          <div>
+            <div class="sector-tag">// CRIPTOGRAFIA E PAREAMENTO DE CAMPO</div>
+            <h1>PAREAR SUA CASA REAL</h1>
+            <p>Conecte sua <b>Samsung Crystal 55"</b> direto pelo Wi-Fi e unifique suas luzes Tuya + Lava e Seca LG ThinQ.</p>
+          </div>
+          <div class="head-actions">
+            <button class="btn ghost" id="btnResetDemo">↺ Voltar à Simulação</button>
+          </div>
+        </div>
+
+        <div class="integ-grid">
+          <!-- CARD 1: SAMSUNG CRYSTAL 55" SMART TV -->
+          <div class="panel hull integ-card recommended">
+            <div class="integ-tag">SUA TV // WI-FI DIRETO NATIVO ★</div>
+            <h3>Samsung Crystal 55" Smart (Tizen OS)</h3>
+            <p>Conexão direta via <b>WSS porta 8002</b> (aceita certificado da TV automaticamente), detecta o MAC sozinho para <b>Wake-on-LAN</b> e abre Netflix/YouTube/Prime/Disney+ em 1 clique.</p>
+            <div class="field"><label>IP da Samsung Crystal 55" no Wi-Fi</label><input id="samsungTvIp" placeholder="Ex: 192.168.1.51"></div>
+            <div class="field"><label>MAC Wi-Fi (opcional — detectado automático!)</label><input id="samsungTvMac" placeholder="Preenchido sozinho ao parear ou ex: 8C:79:F5:44:12:A8"></div>
+            <div class="row-btns">
+              <button class="btn solid" id="btnPairSamsungTv">⌖ Parear Samsung 55"</button>
+              <button class="btn ghost" id="btnWolSamsungTv">⚡ Ligar TV (Wake-on-LAN)</button>
+            </div>
+            <div class="term" id="termSamsungTv"></div>
+            <details open>
+              <summary>Como parear sua Samsung Crystal 55" em 20 segundos?</summary>
+              <ol>
+                <li>Ligue a TV normalmente com o controle remoto e confirme que ela está no mesmo Wi-Fi do seu PC.</li>
+                <li>Para ver o IP na TV: <b>Configurações → Geral → Rede → Status da Rede → Config. IP</b> (ou use a aba <b>Sensores Wi-Fi</b> do app instalado).</li>
+                <li>Digite o IP acima e clique em <b>⌖ Parear Samsung 55"</b>.</li>
+                <li>Olhe para o <b>canto superior direito da TV</b>: aparecerá <em>"HOLONET Command deseja conectar"</em> → selecione <b>Permitir</b> no controle da Samsung!</li>
+                <li>Pronto! O token fica salvo para sempre e você não precisará autorizar de novo.</li>
+              </ol>
+            </details>
+          </div>
+
+          <!-- CARD 2: HOME ASSISTANT -->
+          <div class="panel hull integ-card">
+            <div class="integ-tag">HUB UNIFICADOR // TUYA + LG THINQ ★</div>
+            <h3>Home Assistant Local</h3>
+            <p>A ponte ideal para controlar <b>Luzes Tuya + Lava e Seca LG ThinQ + Geladeira + Ar</b> juntos na rede local, sem depender de várias nuvens.</p>
+            <div class="field"><label>URL do Home Assistant</label><input id="haUrl" placeholder="http://192.168.1.10:8123"></div>
+            <div class="field"><label>Token de Longa Duração</label><input id="haToken" type="password" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6..."></div>
+            <div class="row-btns">
+              <button class="btn ghost" id="btnTestHa">Testar Link</button>
+              <button class="btn solid" id="btnSyncHa">Salvar &amp; Sincronizar</button>
+            </div>
+            <div class="term" id="termHa"></div>
+            <details>
+              <summary>Onde gero o Token no Home Assistant?</summary>
+              <ol>
+                <li>Abra <code>http://IP:8123</code> → clique no seu Perfil (canto inferior esquerdo) → aba <b>Segurança</b>.</li>
+                <li>Em <b>Tokens de acesso de longa duração</b>, clique em <b>Criar token</b> e cole acima.</li>
+                <li>Clique em <b>Salvar &amp; Sincronizar</b>: todas as suas entidades Tuya e LG ThinQ entram automaticamente no Holomapa!</li>
+              </ol>
+            </details>
+          </div>
+
+          <!-- CARD 3: TUYA CLOUD IOT -->
+          <div class="panel hull integ-card">
+            <div class="integ-tag">TUYA OPENAPI v2.0 // HMAC-SHA256</div>
+            <h3>Tuya / Smart Life Direto</h3>
+            <p>Controle direto de lâmpadas, fitas LED, tomadas e fechadura Tuya sem precisar instalar o Home Assistant.</p>
+            <div class="field"><label>Access ID (Client ID)</label><input id="tuyaId" placeholder="ex: 89x7k2m4p9q1..."></div>
+            <div class="field"><label>Access Secret</label><input id="tuyaSecret" type="password" placeholder="••••••••••••"></div>
+            <div class="field"><label>Data Center Endpoint</label><input id="tuyaEndpoint" value="https://openapi.tuyaus.com" placeholder="https://openapi.tuyaus.com"></div>
+            <div class="row-btns">
+              <button class="btn ghost" id="btnTestTuya">Testar Assinatura</button>
+              <button class="btn solid" id="btnSaveTuya">Gravar Chave Tuya</button>
+            </div>
+            <div class="term" id="termTuya"></div>
+            <details>
+              <summary>Passo a passo Tuya no Brasil (5 min)</summary>
+              <ol>
+                <li>Crie um projeto <em>Smart Home</em> gratuito em <b>iot.tuya.com</b> com o data center <b>Western America</b> (<code>https://openapi.tuyaus.com</code>).</li>
+                <li>Em <b>Devices → Link Tuya App Account</b>, escaneie o QR Code com o app Smart Life / Tuya no celular.</li>
+                <li>Salve as chaves acima e clique em <b>⚙ Vincular</b> em qualquer lâmpada no painel para colar o <code>Device ID</code>.</li>
+              </ol>
+            </details>
+          </div>
+
+          <!-- CARD 4: LG THINQ -->
+          <div class="panel hull integ-card">
+            <div class="integ-tag">DOCA DE LAVAGEM &amp; CLIMA</div>
+            <h3>LG ThinQ (Lava e Seca, Geladeira, Ar)</h3>
+            <p>Telemetria de ciclo de lavagem, tempo restante e controle da linha branca LG ThinQ.</p>
+            <div class="row-btns">
+              <button class="btn ghost" id="btnTestLg">Consultar Guia ThinQ PAT</button>
+            </div>
+            <div class="term" id="termLg"></div>
+            <details>
+              <summary>Como vincular sua máquina de lavar LG ThinQ?</summary>
+              <ol>
+                <li>Acesse <code>thinq.developer.lge.com</code> com sua conta LG e gere um <b>Personal Access Token (PAT)</b> gratuito.</li>
+                <li>Adicione a integração oficial <b>LG ThinQ</b> no Home Assistant usando esse token.</li>
+                <li>Sincronize no cartão <b>Home Assistant</b> ao lado para acompanhar o progresso da lavagem ao vivo no Holomapa!</li>
+              </ol>
+            </details>
+          </div>
+        </div>
+      </section>
+
+      <!-- 7. INSTALL DESKTOP -->
+      <section class="view" id="view-install">
+        <div class="view-head">
+          <div>
+            <div class="sector-tag">// PROGRAMA PRONTO · INICIALIZAÇÃO AUTOMÁTICA COM O PC</div>
+            <h1>BAIXAR PROGRAMA DESKTOP</h1>
+            <p>Nada de comandos ou complicação: baixe o executável pronto, dê <b>2 cliques</b> e ele já instala, cria atalho na Área de Trabalho e <b>abre sozinho toda vez que você ligar o computador</b>.</p>
+          </div>
+        </div>
+
+        <div class="integ-grid">
+          <div class="panel hull integ-card recommended">
+            <div class="integ-tag">WINDOWS 10 / 11 // PROGRAMA PRONTO (.EXE) ★</div>
+            <h3>HOLONET Desktop para Windows (Zero Configuração)</h3>
+            <p>Programa nativo completo (~320 KB, sem precisar instalar Node.js nem abrir terminal). Já inclui controle Wi-Fi para sua <b>Samsung Crystal 55"</b>, ícone perto do relógio e <b>inicialização automática com o Windows</b>.</p>
+            <div class="row-btns" style="margin-top:18px">
+              <a class="btn solid" href="https://github.com/grippdiana/agency-agents/raw/arena/cc76687f-agency-agents/orbita-smart-home/downloads/HOLONET-Desktop.exe" target="_blank" rel="noopener" style="text-decoration:none;display:inline-flex;align-items:center;gap:8px">⬇ Baixar HOLONET-Desktop.exe</a>
+              <a class="btn ghost" href="https://github.com/grippdiana/agency-agents/raw/arena/cc76687f-agency-agents/orbita-smart-home/downloads/HOLONET-Windows.zip" target="_blank" rel="noopener" style="text-decoration:none;display:inline-flex;align-items:center;gap:8px">⬇ Alternativa em .ZIP</a>
+            </div>
+            <div class="steps" style="margin-top:18px">
+              <div class="step"><b>01</b><div><strong>Clique em Baixar e abra o arquivo</strong><p>Se o Windows mostrar o aviso azul de aplicativo novo ("O Windows protegeu o computador"), clique em <b>Mais informações → Executar assim mesmo</b>.</p></div></div>
+              <div class="step"><b>02</b><div><strong>Pronto! Já inicia sozinho quando ligar o PC</strong><p>Ele cria o atalho <b>HOLONET Comando</b> na sua Área de Trabalho, fica ativo na bandeja do sistema (perto do relógio) e abre automaticamente ao iniciar o Windows. Você pode ligar/desligar o auto-iniciar a qualquer hora pelo botão <b>🚀 BOOT: ATIVO</b> no topo!</p></div></div>
+            </div>
+          </div>
+
+          <div class="panel hull integ-card">
+            <div class="integ-tag">MAC &amp; LINUX // INSTALADOR AUTOMÁTICO</div>
+            <h3>Pacote para macOS e Linux</h3>
+            <p>Usa Mac ou Linux? Baixe o pacote abaixo e dê dois cliques em <code>Iniciar-Mac.command</code> (macOS) ou <code>iniciar-linux.sh</code> (Linux) para configurar o auto-iniciar no login.</p>
+            <div class="row-btns" style="margin-top:18px">
+              <a class="btn ghost" href="https://github.com/grippdiana/agency-agents/raw/arena/cc76687f-agency-agents/orbita-smart-home/downloads/HOLONET-Mac-Linux.zip" target="_blank" rel="noopener" style="text-decoration:none;display:inline-flex;align-items:center;gap:8px">⬇ Baixar para Mac / Linux (.zip)</a>
+            </div>
+            <p class="hint" id="pwaHint">Dica bônus: com o HOLONET rodando no seu PC em casa, você também pode abrir o endereço IP dele no navegador do celular para controlar a casa pelo sofá!</p>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+</div>
+
+<!-- MODAL VINCULAR / REGISTRAR UNIDADE -->
+<div class="modal-backdrop" id="devModal" hidden>
+  <div class="panel hull modal-box">
+    <div class="panel-head"><span id="modalTitle">VINCULAR MÓDULO</span><button class="link" id="btnCloseModal">✕ FECHAR</button></div>
+    <input type="hidden" id="mDevId">
+    <div class="modal-grid">
+      <div class="field"><label>Designação / Nome</label><input id="mName" placeholder="Ex: Samsung Crystal Quarto"></div>
+      <div class="field"><label>Classe de Subsistema</label>
+        <select id="mType">
+          <option value="tv">📺 Smart TV (Samsung Tizen / HA)</option>
+          <option value="light">💡 Iluminação / Fita LED Tuya</option>
+          <option value="washer">🫧 Lava e Seca LG ThinQ</option>
+          <option value="ac">❄️ Ar-condicionado</option>
+          <option value="fridge">🧊 Refrigerador</option>
+          <option value="plug">🔌 Tomada / Reator</option>
+          <option value="lock">🔒 Trava / Fechadura</option>
+          <option value="camera">📷 Câmera Sentinela</option>
+          <option value="vacuum">🤖 Droide Aspirador</option>
+          <option value="sensor">🌡️ Sonda Climática</option>
+        </select>
+      </div>
+      <div class="field"><label>Setor / Cômodo</label><input id="mRoom" placeholder="Ex: Sala"></div>
+      <div class="field"><label>Fabricante / Protocolo</label><input id="mBrand" placeholder="Ex: Samsung Tizen / Tuya"></div>
+      <div class="field"><label>IP na Rede Wi-Fi</label><input id="mIp" placeholder="192.168.1.51"></div>
+      <div class="field"><label>MAC Address (Wake-on-LAN)</label><input id="mMac" placeholder="8C:79:F5:44:12:A8"></div>
+      <div class="field"><label>Entity ID (Home Assistant)</label><input id="mHaEntity" placeholder="media_player.samsung_crystal_55"></div>
+      <div class="field"><label>Device ID (Tuya Cloud)</label><input id="mTuyaId" placeholder="eb918273645..."></div>
+    </div>
+    <div class="row-btns" style="justify-content:flex-end;margin-top:18px">
+      <button class="btn ghost" id="btnCancelModal">Cancelar</button>
+      <button class="btn solid" id="btnSaveModal">Gravar no Holomapa</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<script src="app.js"></script>
+</body>
+</html>
