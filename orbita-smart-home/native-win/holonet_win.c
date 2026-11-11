@@ -129,7 +129,7 @@ static void sha256_final(Sha256Ctx *ctx, uint8_t hash[32]) {
     }
 }
 
-static void sha256_hex(const char *str, char out_hex[65], bool upper) {
+static void __attribute__((unused)) sha256_hex(const char *str, char out_hex[65], bool upper) {
     uint8_t h[32];
     Sha256Ctx c;
     sha256_init(&c);
@@ -140,7 +140,7 @@ static void sha256_hex(const char *str, char out_hex[65], bool upper) {
     out_hex[64] = '\0';
 }
 
-static void hmac_sha256_hex(const char *key, const char *msg, char out_hex[65]) {
+static void __attribute__((unused)) hmac_sha256_hex(const char *key, const char *msg, char out_hex[65]) {
     uint8_t k_ipad[64], k_opad[64], tk[32], inner[32], outer[32];
     size_t klen = strlen(key);
     if (klen > 64) {
@@ -903,6 +903,91 @@ static void handle_network_scan(sock_t client, bool quick) {
 /* =========================================================================
  * Roteador HTTP Principal
  * ========================================================================= */
+#ifdef _WIN32
+/* ===================== TUYA CLOUD OPENAPI v2.0 (chave API) ===================== */
+static char g_tuya_token[256] = {0};
+static long long g_tuya_token_exp_ms = 0;
+
+static void tuya_upper_hex(char *s) {
+    for (; *s; s++) if (*s >= 'a' && *s <= 'f') *s = (char)(*s - 32);
+}
+
+/* Chamada assinada: sign = HMAC-SHA256(clientId + accessToken + t + nonce + METHOD\nSHA256(body)\n\nPATH) */
+static bool tuya_cloud_call(const AppConfig *cfg, const char *access_token, const char *method,
+                            const char *path_q, const char *body, char *rbuf, size_t rsz, int *status) {
+    char body_hash[65], sign[65], nonce[48], tsbuf[32], str2sign[768], input[1600], url[640], hdrs[1100], at_hdr[320];
+    long long t = (long long)time(NULL) * 1000LL;
+    snprintf(tsbuf, sizeof(tsbuf), "%lld", t);
+    snprintf(nonce, sizeof(nonce), "holonet%lld", t);
+    sha256_hex(body ? body : "", body_hash, false);
+    snprintf(str2sign, sizeof(str2sign), "%s\n%s\n\n%s", method, body_hash, path_q);
+    snprintf(input, sizeof(input), "%s%s%s%s%s", cfg->tuyaClientId, access_token ? access_token : "", tsbuf, nonce, str2sign);
+    hmac_sha256_hex(cfg->tuyaSecret, input, sign);
+    tuya_upper_hex(sign);
+    at_hdr[0] = '\0';
+    if (access_token && access_token[0]) snprintf(at_hdr, sizeof(at_hdr), "access_token: %s\r\n", access_token);
+    snprintf(hdrs, sizeof(hdrs),
+        "client_id: %s\r\nsign: %s\r\nt: %s\r\nsign_method: HMAC-SHA256\r\nnonce: %s\r\n%sContent-Type: application/json\r\n",
+        cfg->tuyaClientId, sign, tsbuf, nonce, at_hdr);
+    snprintf(url, sizeof(url), "%s%s", cfg->tuyaEndpoint[0] ? cfg->tuyaEndpoint : "https://openapi.tuyaus.com", path_q);
+    return winhttp_request(url, method, hdrs, body, rbuf, rsz, status);
+}
+
+/* Obtém token (cache até expirar). force=true ignora o cache. */
+static bool tuya_get_token(const AppConfig *cfg, char *tok, size_t tsz, bool force, char *err, size_t errsz) {
+    long long now = (long long)time(NULL) * 1000LL;
+    if (!force && g_tuya_token[0] && now < g_tuya_token_exp_ms - 60000LL) {
+        snprintf(tok, tsz, "%s", g_tuya_token);
+        return true;
+    }
+    char rbuf[2048] = {0}; int st = 0;
+    if (!tuya_cloud_call(cfg, NULL, "GET", "/v1.0/token?grant_type=1", NULL, rbuf, sizeof(rbuf), &st)) {
+        snprintf(err, errsz, "Tuya: sem conexão com %s", cfg->tuyaEndpoint[0] ? cfg->tuyaEndpoint : "openapi.tuyaus.com");
+        return false;
+    }
+    char at[256] = {0}; double exp = 0;
+    if (!strstr(rbuf, "\"success\":true") || !json_get_string(rbuf, "access_token", at, sizeof(at)) || !at[0]) {
+        char msg[160] = {0};
+        json_get_string(rbuf, "msg", msg, sizeof(msg));
+        snprintf(err, errsz, "Tuya recusou a chave API: %s", msg[0] ? msg : "confira Access ID, Secret e Data Center");
+        return false;
+    }
+    if (!json_get_number(rbuf, "expire_time", &exp) || exp <= 0) exp = 7200;
+    snprintf(g_tuya_token, sizeof(g_tuya_token), "%s", at);
+    g_tuya_token_exp_ms = now + (long long)exp * 1000LL;
+    snprintf(tok, tsz, "%s", at);
+    return true;
+}
+
+/* Envia comando real para a lâmpada/tomada/dispositivo via nuvem Tuya. */
+static bool tuya_forward_command(const AppConfig *cfg, const Device *d, const char *action, int value, char *err, size_t errsz) {
+    char code[32] = {0}, vjson[32] = {0}, tok[256] = {0}, path[160], cbody[256], rbuf[1024] = {0};
+    if (strcmp(action, "toggle") == 0 || strcmp(action, "power") == 0) {
+        snprintf(code, sizeof(code), "%s", strcmp(d->type, "plug") == 0 ? "switch_1" : "switch_led");
+        snprintf(vjson, sizeof(vjson), "%s", d->power ? "true" : "false");
+    } else if (strcmp(action, "brightness") == 0) {
+        snprintf(code, sizeof(code), "bright_value_v2");
+        snprintf(vjson, sizeof(vjson), "%d", clamp_int(value, 1, 100) * 10);
+    } else if (strcmp(action, "colorTemp") == 0) {
+        snprintf(code, sizeof(code), "temp_value_v2");
+        snprintf(vjson, sizeof(vjson), "%d", ((clamp_int(value, 2200, 6500) - 2200) * 1000) / 4300);
+    } else {
+        return false; /* ação sem equivalente na nuvem: fica na simulação */
+    }
+    if (!tuya_get_token(cfg, tok, sizeof(tok), false, err, errsz)) return false;
+    snprintf(path, sizeof(path), "/v1.0/iot-03/devices/%s/commands", d->tuyaId);
+    snprintf(cbody, sizeof(cbody), "{\"commands\":[{\"code\":\"%s\",\"value\":%s}]}", code, vjson);
+    int st = 0;
+    if (!tuya_cloud_call(cfg, tok, "POST", path, cbody, rbuf, sizeof(rbuf), &st) || !strstr(rbuf, "\"success\":true")) {
+        char msg[160] = {0};
+        json_get_string(rbuf, "msg", msg, sizeof(msg));
+        snprintf(err, errsz, "Tuya: %s", msg[0] ? msg : "falha ao enviar comando");
+        return false;
+    }
+    return true;
+}
+#endif
+
 static void handle_client(sock_t client) {
     char *req = (char*)malloc(16384);
     if (!req) { CLOSESOCK(client); return; }
@@ -1186,6 +1271,15 @@ static void handle_client(sock_t client) {
                         bridge = "homeassistant";
                 }
             }
+            /* Ponte Real Tuya Cloud (chave API Access ID + Access Secret) */
+            if (strcmp(bridge, "demo") == 0 && strcmp(cfg_copy.mode, "tuya") == 0 && cfg_copy.tuyaClientId[0] && cfg_copy.tuyaSecret[0] && copy.tuyaId[0]) {
+                char terr[220] = {0};
+                if (tuya_forward_command(&cfg_copy, &copy, action, has_num ? (int)val_num : 0, terr, sizeof(terr)))
+                    bridge = "tuya-cloud";
+                else if (terr[0]) {
+                    lock_state(); add_log(terr); unlock_state();
+                }
+            }
 #endif
             lock_state();
             char lmsg[192];
@@ -1404,28 +1498,27 @@ static void handle_client(sock_t client) {
             json_get_string(body, "clientId", cid, sizeof(cid));
             json_get_string(body, "clientSecret", sec, sizeof(sec));
             json_get_string(body, "endpoint", ep, sizeof(ep));
-            if (!cid[0] || !sec[0]) {
-                send_json(client, 200, "{\"ok\":false,\"logs\":[\"❌ Informe Access ID e Access Secret do iot.tuya.com.\"]}");
-            } else {
-                char empty_sha[65], sign_hex[65], sign_input[512];
-                sha256_hex("", empty_sha, false);
-                long long ts_ms = (long long)time(NULL) * 1000LL;
-                snprintf(sign_input, sizeof(sign_input), "%s%lldholonet123GET\n%s\n\n/v1.0/token?grant_type=1", cid, ts_ms, empty_sha);
-                hmac_sha256_hex(sec, sign_input, sign_hex);
-#ifdef _WIN32
-                char full_url[256], hdrs[512], rbuf[2048] = {0}; int st = 0;
-                snprintf(full_url, sizeof(full_url), "%s/v1.0/token?grant_type=1", ep[0] ? ep : "https://openapi.tuyaus.com");
-                snprintf(hdrs, sizeof(hdrs), "client_id: %s\r\nsign: %s\r\nt: %lld\r\nsign_method: HMAC-SHA256\r\nnonce: holonet123\r\n", cid, sign_hex, ts_ms);
-                if (winhttp_request(full_url, "GET", hdrs, NULL, rbuf, sizeof(rbuf), &st) && strstr(rbuf, "\"success\":true")) {
-                    send_json(client, 200, "{\"ok\":true,\"logs\":[\"✅ Autenticado na Tuya Cloud OpenAPI v2.0 com sucesso!\"]}");
+                AppConfig tc; memset(&tc, 0, sizeof(tc));
+                snprintf(tc.tuyaClientId, sizeof(tc.tuyaClientId), "%s", cid);
+                snprintf(tc.tuyaSecret, sizeof(tc.tuyaSecret), "%s", sec);
+                snprintf(tc.tuyaEndpoint, sizeof(tc.tuyaEndpoint), "%s", ep);
+                if (!cid[0] || !sec[0]) {
+                    send_json(client, 200, "{\"ok\":false,\"logs\":[\"❌ Informe Access ID e Access Secret do iot.tuya.com.\"]}");
                 } else {
-                    send_json(client, 200, "{\"ok\":false,\"logs\":[\"❌ Tuya recusou as chaves. Confira Access ID, Secret e Data Center (openapi.tuyaus.com).\"]}");
-                }
+#ifdef _WIN32
+                    char tok[256] = {0}, terr[200] = {0};
+                    if (tuya_get_token(&tc, tok, sizeof(tok), true, terr, sizeof(terr))) {
+                        send_json(client, 200, "{\"ok\":true,\"logs\":[\"✅ Chave API Tuya válida: token obtido na Tuya Cloud OpenAPI v2.0.\",\"🔗 Comandos de lâmpadas e tomadas Tuya serão enviados pela nuvem.\"]}");
+                    } else {
+                        char errjson[400];
+                        snprintf(errjson, sizeof(errjson), "{\"ok\":false,\"logs\":[\"❌ %s\"]}", terr);
+                        send_json(client, 200, errjson);
+                    }
 #else
-                snprintf(resp, 65536, "{\"ok\":true,\"logs\":[\"✅ HMAC-SHA256 calculado: %.12s...\"]}", sign_hex);
-                send_json(client, 200, resp);
+                    snprintf(resp, 65536, "{\"ok\":true,\"logs\":[\"ℹ️ Teste de rede Tuya disponível no HOLONET-Desktop.exe (Windows).\"]}");
+                    send_json(client, 200, resp);
 #endif
-            }
+                }
         } else {
             send_json(client, 200, "{\"ok\":true,\"logs\":[\"ℹ️ Conecte sua Lava e Seca LG ThinQ pelo Home Assistant (thinq.developer.lge.com PAT).\"]}");
         }
@@ -1438,6 +1531,9 @@ static void handle_client(sock_t client) {
         json_get_string(body, "tuyaClientId", g_cfg.tuyaClientId, sizeof(g_cfg.tuyaClientId));
         json_get_string(body, "tuyaSecret", g_cfg.tuyaSecret, sizeof(g_cfg.tuyaSecret));
         json_get_string(body, "tuyaEndpoint", g_cfg.tuyaEndpoint, sizeof(g_cfg.tuyaEndpoint));
+#ifdef _WIN32
+        g_tuya_token[0] = 0; g_tuya_token_exp_ms = 0;
+#endif
         save_config();
         unlock_state();
         send_json(client, 200, "{\"ok\":true}");
