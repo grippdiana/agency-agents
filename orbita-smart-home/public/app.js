@@ -904,3 +904,78 @@ loadEnergy();
 loadLocalNetQuick();
 setInterval(loadEnergy, 15000);
 window.addEventListener('resize', drawChart);
+
+/* ===================== MODO VISUAL LIMPO ===================== */
+function applyCleanMode(on) {
+  document.body.classList.toggle('clean', on);
+  const b = $('#btnClean');
+  if (b) {
+    b.textContent = on ? '✦ VISUAL: LIMPO' : '✧ VISUAL: HUD COMPLETO';
+    b.classList.toggle('muted', !on);
+  }
+}
+let cleanMode = localStorage.getItem('holonetClean') !== '0';
+applyCleanMode(cleanMode);
+$('#btnClean')?.addEventListener('click', () => {
+  cleanMode = !cleanMode;
+  localStorage.setItem('holonetClean', cleanMode ? '1' : '0');
+  applyCleanMode(cleanMode);
+  playSfx('blip');
+});
+
+/* ===================== ASSISTENTE DE CONEXÃO ===================== */
+const WIZ_TITLES = ['Rede Wi-Fi', 'Samsung TV', 'Tuya / LG', 'Pronto'];
+let wizStep = 1;
+
+function renderWizard() {
+  $$('#wizSteps li').forEach(li => {
+    const n = Number(li.dataset.step);
+    li.classList.toggle('current', n === wizStep);
+    li.classList.toggle('done', n < wizStep);
+  });
+  $('#wizProgress').textContent = `Passo ${wizStep} de 4 — ${WIZ_TITLES[wizStep - 1]}`;
+  $('#wizPrev').disabled = wizStep === 1;
+  $('#wizNext').textContent = wizStep === 4 ? '✓ Concluir' : 'Próximo →';
+  const body = $('#wizBody');
+  if (wizStep === 1) {
+    body.innerHTML = `
+      <p>1. Ligue a <b>Samsung Crystal 55"</b> e confirme que ela está no <b>mesmo Wi-Fi</b> deste computador.</p>
+      <p>2. Veja abaixo o endereço deste computador na rede.</p>
+      <div class="wiz-net" id="wizNetInfo">Consultando rede…</div>
+      <button class="btn ghost" id="wizScan">◎ Procurar TV na rede</button>
+      <div class="wiz-hint" id="wizScanOut"></div>`;
+    api('/api/network/scan?quick=1').then(r => {
+      const el = $('#wizNetInfo'); if (el) el.innerHTML = `IP deste PC: <b>${esc(r.local.address)}</b> · Setor: <b>${esc(r.subnet)}.x</b>`;
+    }).catch(() => { const el = $('#wizNetInfo'); if (el) el.textContent = 'Não foi possível consultar a rede.'; });
+    $('#wizScan').addEventListener('click', () => { switchView('network'); setTimeout(() => $('#btnScan')?.click(), 150); });
+  } else if (wizStep === 2) {
+    body.innerHTML = `
+      <p>1. Digite o IP da TV (ex.: <b>192.168.1.51</b>). Para achar: <b>Configurações → Geral → Rede → Status da Rede</b>.</p>
+      <p>2. Clique em <b>Parear agora</b> e olhe para a TV.</p>
+      <p>3. Na TV, selecione <b>Permitir</b> no controle remoto. Feito uma única vez.</p>
+      <div class="wiz-hint">IP atual: <b>${esc($('#samsungTvIp')?.value || 'não informado')}</b></div>
+      <button class="btn solid" id="wizPair">⌖ Parear agora</button>`;
+    $('#wizPair').addEventListener('click', () => {
+      if (!$('#samsungTvIp').value.trim()) { toast('Digite o IP da TV primeiro.'); $('#samsungTvIp').focus(); return; }
+      $('#btnPairSamsungTv').click();
+    });
+  } else if (wizStep === 3) {
+    body.innerHTML = `
+      <p>Opcional. Use somente se tiver luzes <b>Tuya</b> ou lavadora/secadora <b>LG ThinQ</b>.</p>
+      <p>Esses módulos são configurados pelo Home Assistant ou pela chave Tuya, nos cartões abaixo.</p>
+      <button class="btn ghost" id="wizGoTuya">Ir para Tuya / Home Assistant</button>`;
+    $('#wizGoTuya').addEventListener('click', () => $('#btnTestTuya')?.scrollIntoView({ behavior: 'smooth', block: 'center' }));
+  } else {
+    body.innerHTML = `
+      <p>✅ Conexão concluída. A Samsung já pode ser controlada pelo <b>Holomapa Tático</b>.</p>
+      <button class="btn solid" id="wizDone">Abrir Holomapa Tático</button>`;
+    $('#wizDone').addEventListener('click', () => switchView('overview'));
+  }
+}
+$('#wizNext')?.addEventListener('click', () => {
+  if (wizStep < 4) { wizStep++; renderWizard(); }
+  else { wizStep = 1; renderWizard(); switchView('overview'); }
+});
+$('#wizPrev')?.addEventListener('click', () => { if (wizStep > 1) { wizStep--; renderWizard(); } });
+$$('#wizSteps li').forEach(li => li.addEventListener('click', () => { wizStep = Number(li.dataset.step); renderWizard(); }));
+renderWizard();

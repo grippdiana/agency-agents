@@ -51,6 +51,7 @@
 
     <div class="top-right">
       <button class="btn sfx-btn" id="btnAutostart" title="Iniciar automaticamente quando ligar o computador">🚀 BOOT: ATIVO</button>
+      <button class="btn sfx-btn" id="btnClean" title="Alternar entre visual limpo e HUD completo">✦ VISUAL: LIMPO</button>
       <button class="btn sfx-btn" id="btnSfx" title="Alternar bipes táticos do console">🔊 HUD SFX</button>
       <button class="btn install-pill" id="btnTopInstall">⬇ BAIXAR PROGRAMA</button>
       <div class="clock">
@@ -303,6 +304,24 @@
             <button class="btn ghost" id="btnResetDemo">↺ Voltar à Simulação</button>
           </div>
         </div>
+
+        <section class="setup-wizard panel hull" id="setupWizard" aria-label="Assistente de conexão">
+          <div class="wiz-head">
+            <strong>ASSISTENTE DE CONEXÃO</strong>
+            <span id="wizProgress">Passo 1 de 4</span>
+          </div>
+          <ol class="wiz-steps" id="wizSteps">
+            <li data-step="1" class="current"><span>1</span> Rede Wi-Fi</li>
+            <li data-step="2"><span>2</span> Samsung TV</li>
+            <li data-step="3"><span>3</span> Tuya / LG</li>
+            <li data-step="4"><span>4</span> Pronto</li>
+          </ol>
+          <div class="wiz-body" id="wizBody"></div>
+          <div class="wiz-nav">
+            <button class="btn ghost" id="wizPrev">← Voltar</button>
+            <button class="btn solid" id="wizNext">Próximo →</button>
+          </div>
+        </section>
 
         <div class="integ-grid">
           <!-- CARD 1: SAMSUNG CRYSTAL 55" SMART TV -->

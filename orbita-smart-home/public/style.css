@@ -926,3 +926,40 @@ details ol { margin: 8px 0 0 18px; }
   .brand { min-width: 0; }
   .energy-top, .modal-grid { grid-template-columns: 1fr; }
 }
+
+/* ===================== MODO VISUAL LIMPO (padrão) ===================== */
+body.clean #starfield,
+body.clean .scanlines,
+body.clean .reticle-emblem,
+body.clean .sector-tag,
+body.clean .brand-kicker,
+body.clean .clock small,
+body.clean .hint { display: none !important; }
+body.clean *,
+body.clean *::before,
+body.clean *::after { animation: none !important; transition: none !important; }
+body.clean .panel,
+body.clean .hull { box-shadow: none !important; background-image: none !important; }
+body.clean .panel::before, body.clean .panel::after,
+body.clean .hull::before, body.clean .hull::after { display: none !important; }
+body.clean { background: var(--bg) !important; }
+body.clean .view-head p { font-size: 15px; }
+
+/* ===================== ASSISTENTE DE CONEXÃO ===================== */
+.setup-wizard { padding: 22px 24px; margin-bottom: 22px; }
+.wiz-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+.wiz-head strong { font-family: var(--display, inherit); letter-spacing: .08em; }
+.wiz-head span { color: var(--cyan, #3dd8ff); font-size: 14px; }
+.wiz-steps { list-style: none; display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 18px; }
+.wiz-steps li { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid rgba(61,216,255,.18); border-radius: 10px; opacity: .55; cursor: pointer; font-size: 14px; }
+.wiz-steps li span { display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; border: 1px solid currentColor; font-weight: 700; flex-shrink: 0; }
+.wiz-steps li.current { opacity: 1; border-color: var(--amber, #ffb84d); }
+.wiz-steps li.done { opacity: .9; border-color: rgba(61,216,255,.5); }
+.wiz-steps li.done span { background: rgba(61,216,255,.25); }
+.wiz-body { min-height: 120px; line-height: 1.55; font-size: 15px; }
+.wiz-body p { margin-bottom: 8px; }
+.wiz-body .btn { margin-top: 10px; }
+.wiz-net { margin: 10px 0; padding: 10px 12px; border-radius: 8px; background: rgba(61,216,255,.06); font-family: var(--mono, monospace); }
+.wiz-hint { margin: 10px 0; font-size: 14px; opacity: .85; }
+.wiz-nav { display: flex; justify-content: space-between; gap: 10px; margin-top: 16px; }
+@media (max-width: 720px) { .wiz-steps { grid-template-columns: repeat(2, 1fr); } }
